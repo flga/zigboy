@@ -1,24 +1,37 @@
 const std = @import("std");
+const os = std.os;
+const process = std.process;
+var exit = false;
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+fn handleSigInt(_: c_int) callconv(.C) void {
+    exit = true;
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        std.debug.print("bye!\n", .{});
+        _ = gpa.deinit();
+    }
+
+    try os.sigaction(os.SIG.INT, &os.Sigaction{
+        .handler = .{
+            .handler = handleSigInt,
+        },
+        .mask = os.empty_sigset,
+        .flags = 0,
+    }, null);
+
+    var args = try process.argsAlloc(allocator);
+    defer process.argsFree(allocator, args);
+    std.debug.print("Args:\n", .{});
+    for (args) |next| {
+        std.debug.print("\t{s}\n", .{next});
+    }
+
+    while (!exit) {
+        std.debug.print("bonk\n", .{});
+        std.time.sleep(1 * std.time.ns_per_s);
+    }
 }
