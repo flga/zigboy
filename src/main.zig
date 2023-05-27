@@ -1,6 +1,9 @@
 const std = @import("std");
 const os = std.os;
 const process = std.process;
+
+const zigboy = @import("zigboy/zigboy.zig");
+
 var exit = false;
 
 fn handleSigInt(_: c_int) callconv(.C) void {
@@ -25,13 +28,11 @@ pub fn main() !void {
 
     var args = try process.argsAlloc(allocator);
     defer process.argsFree(allocator, args);
-    std.debug.print("Args:\n", .{});
-    for (args) |next| {
-        std.debug.print("\t{s}\n", .{next});
-    }
+    const rom_path = args[1];
 
-    while (!exit) {
-        std.debug.print("bonk\n", .{});
-        std.time.sleep(1 * std.time.ns_per_s);
-    }
+    var console = zigboy.Console.init(allocator);
+    defer console.deinit();
+
+    try console.load_rom_from_file(rom_path);
+    try console.dump_cart_info(std.io.getStdOut().writer());
 }
